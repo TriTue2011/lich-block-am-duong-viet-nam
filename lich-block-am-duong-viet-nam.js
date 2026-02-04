@@ -30,8 +30,8 @@ import {
   CAT_TINH,
   HUNG_TINH,
   THAN_SAT,
-} from './lich-block-am-duong-viet-nam.data.js';
-import { svg_12congiap } from './lich-block-am-duong-viet-nam.svg.js';
+} from './lich-block-am-duong-viet-nam_data.js';
+import { svg_12congiap } from './lich-block-am-duong-viet-nam_svg.js';
 
 (function(){
   'use strict';
