@@ -1,122 +1,144 @@
-# lich-block-am-duong-viet-nam
-## Custom card hiển thị lịch Âm Dương theo kiểu lịch Block:
-- Hiển thị các ngày Lễ trong năm theo lịch dương và lịch âm.
-- Xem lịch các tháng, các năm bằng cách nhấn di chuyển trong giao diện
-- Hình nền thay đổi theo ngày trong tuần.
-- Hiện giờ hoàng đạo,... ngày tháng năm theo can chi lịch âm.
-- Hiển thị tháng Đủ *(Đ)* hoặc Thiếu *(T)*, tháng *Nhuận* Âm Lịch
+# Lịch Âm Dương Việt Nam - Home Assistant Custom Card
 
-<img width="624" height="720" alt="image" src="https://github.com/user-attachments/assets/6b132ecb-2fec-4b34-8ebe-5bf885bc9588" />
-<img width="456" height="957" alt="image" src="https://github.com/user-attachments/assets/f872886d-6605-43f0-b212-a118d1c270d8" />
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 
-## Thêm card vào lovelace:
-```
+Lịch âm dương Việt Nam hiển thị đầy đủ thông tin lịch Dương, lịch Âm, Giờ Hoàng Đạo, Thập Nhị Trực, Nhị Thập Bát Tú và các thông tin phong thủy cho Home Assistant.
+
+## Tính năng
+
+### 📅 Thông tin Dương lịch
+- Ngày tháng năm Dương lịch
+- Thứ trong tuần (Tiếng Việt)
+- Các ngày lễ Việt Nam và Quốc tế
+
+### 🌙 Thông tin Âm lịch
+- Ngày tháng năm Âm lịch
+- Can Chi (Ngày, Tháng, Năm)
+- 12 Con Giáp với emoji
+- Giờ Hoàng Đạo
+- 24 Tiết khí
+- Các ngày lễ Âm lịch (Tết, Rằm, Vu Lan, Trung Thu...)
+
+### 🔮 Thông tin phong thủy
+- Thập Nhị Trực
+- Nhị Thập Bát Tú
+- Sao Cát - Sao Hung
+- Thần Sát
+- Nên làm - Kiêng cữ
+
+### ✨ Tính năng tương tác
+- Chuyển tháng (◀ ▶)
+- Chuyển năm (◀◀ ▶▶)
+- Reset về hôm nay (📅)
+- Click vào ngày để xem chi tiết popup
+- Responsive design
+
+## Cài đặt
+
+### Qua HACS (Khuyến nghị)
+
+1. Mở HACS trong Home Assistant
+2. Chọn "Frontend"
+3. Click menu 3 chấm ở góc phải trên
+4. Chọn "Custom repositories"
+5. Thêm URL: `https://github.com/TriTue2011/lich-block-am-duong-viet-nam`
+6. Category: `Lovelace`
+7. Click "Add"
+8. Tìm "Lịch Âm Dương Việt Nam" và cài đặt
+9. Restart Home Assistant
+10. Clear browser cache (Ctrl + F5)
+
+### Cài đặt thủ công
+
+1. Download file `lich-block-am-duong-viet-nam.js` từ thư mục `dist/`
+2. Copy vào `/config/www/community/lich-block-am-duong-viet-nam/`
+3. Thêm resource trong Home Assistant:
+   - Settings → Dashboards → Resources
+   - Add Resource
+   - URL: `/hacsfiles/lich-block-am-duong-viet-nam/lich-block-am-duong-viet-nam.js`
+   - Type: `JavaScript Module`
+4. Clear browser cache (Ctrl + F5)
+
+## Cấu hình
+
+### Cấu hình cơ bản
+
+```yaml
 type: custom:lich-block-am-duong-viet-nam
-background: transparent # Hai chế độ normal(mặc định) và transparent
-background_opacity: 0.6 #0 là có màu nền, 1 là màu nền trong suốt hoàn toàn
+background: transparent
+background_opacity: 0.6
+grid_options:
+  columns: full
 ```
 
-## Hướng dẫn:
-### Khi update các bạn tải lại folder images copy lại vào `\config\www\community\lich-block-am-duong-viet-nam\`
-1. Cài qua HACS
-   - Vào HACS
-   - Vào 3 Chấm góc trên bên phải
-   - Chọn **Custom repositories**
-     
-     <img width="303" height="437" alt="image" src="https://github.com/user-attachments/assets/71489d94-bc79-4f12-9941-9c1ce56152e8" />
+### Các tùy chọn
 
-   - Điền `https://github.com/khaisilk1910/lich-block-am-duong-viet-nam` và chọn Dashboard và nhấn Add
-     
-     <img width="433" height="487" alt="image" src="https://github.com/user-attachments/assets/755a49cb-58a6-481d-b6ad-650017615e86" />
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `type` | string | **Required** | `custom:lich-block-am-duong-viet-nam` |
+| `background` | string | `normal` | Loại nền: `normal` hoặc `transparent` |
+| `background_opacity` | number | `0.6` | Độ mờ nền (0-1) |
+| `center_entity` | string | optional | Entity ID để hiển thị ở giữa |
+| `grid_options` | object | optional | Tùy chọn lưới |
 
-   - Quay lại HACS và nhập ô tìm kiếm `Lịch Block Âm Dương Việt Nam` và Tải về
-     
-     <img width="1658" height="326" alt="image" src="https://github.com/user-attachments/assets/70917f4b-5ff1-4bd6-b4f9-6e1e9acd4d86" />
-     
-   - Tải file ảnh hình nền:
-      - Truy cập: `https://github.com/khaisilk1910/lich-block-am-duong-viet-nam/tree/main/images`
-        
-      - Tải tất cả các ảnh trong thư mục `images` về máy
-        
-      - Tạo mới folder `images` trong `\config\www\community\lich-block-am-duong-viet-nam\` và dán tất cả các file ảnh vào thư mục `images`
-        <img width="1063" height="242" alt="image" src="https://github.com/user-attachments/assets/6546c7f0-b80e-4798-a773-76dfb384d019" />
-        <img width="1255" height="284" alt="image" src="https://github.com/user-attachments/assets/1a16e47a-9a9e-408e-b90b-b63ca520500d" />
-        
-   - Sau đó quay trở lại Dashboard mà bạn muốn thêm một thẻ mới.
-     
-   - Vào Edit Dashboard
-     
-     <img width="172" height="110" alt="image" src="https://github.com/user-attachments/assets/2447c0e3-0b85-4351-a8ed-51643e3e766c" />
-     
-   - Thêm thẻ mới và điền
-     ```
-     type: custom:lich-block-am-duong-viet-nam
-     ```
-     
-     <img width="1020" height="768" alt="image" src="https://github.com/user-attachments/assets/2aa98f8f-461a-4397-99a3-cf0fdc22755a" />
+### Ví dụ nâng cao
 
-   - Để xem lịch các tháng, các năm nhấn dấu **<< <** hoặc **> >>**
-     
-     <img width="505" height="541" alt="image" src="https://github.com/user-attachments/assets/16f9fab1-c6eb-49b7-97fb-dfb23f9ffeb3" />
-- Để quay lại ngày hiện tại nhấn vào vị trí như ảnh
-  
-  <img width="509" height="543" alt="image" src="https://github.com/user-attachments/assets/ae841027-586b-4f80-805e-38be74392f94" />
+```yaml
+type: custom:lich-block-am-duong-viet-nam
+background: transparent
+background_opacity: 0.8
+center_entity: sensor.inspirational_quote
+grid_options:
+  columns: full
+```
 
+## Xử lý lỗi
 
+### "Custom element doesn't exist"
 
-2. Cài đặt thủ công
-- Tải thư mục **lunar_calendar_card** về máy
-- Copy thư mục **lunar_calendar_card** vào **/config/www/**
-- Vào Edit Dashboard
-  
-  <img width="172" height="110" alt="image" src="https://github.com/user-attachments/assets/2447c0e3-0b85-4351-a8ed-51643e3e766c" />
+1. Kiểm tra file đã được cài đặt đúng vị trí
+2. Kiểm tra Resource Type là `JavaScript Module`
+3. Clear browser cache (Ctrl + F5)
+4. Restart Home Assistant
 
-- Vào tiếp 3 Chấm và chọn Manage resources
-  
-  <img width="291" height="279" alt="image" src="https://github.com/user-attachments/assets/ea5e337a-f9f1-4069-8f15-b9141169aee4" />
-  
-- Tiếp theo chọn Add Resource
-  
-  <img width="263" height="145" alt="image" src="https://github.com/user-attachments/assets/3089abce-4441-4e4c-a810-eac907cb8fdf" />
+### Card không hiển thị
 
-- Tiếp theo điền đường dẫn đến file **lich-block-am-duong-viet-nam.js** là **/local/lich-block-am-duong-viet-nam/lich-block-am-duong-viet-nam.js** và lựa chọn như hình ảnh
-  
-  <img width="568" height="495" alt="image" src="https://github.com/user-attachments/assets/b1b952d2-0630-4ca8-8fac-527a6fcf0db6" />
+1. Mở Developer Tools (F12)
+2. Kiểm tra tab Console để xem lỗi
+3. Đảm bảo YAML syntax đúng
+4. Thử cấu hình cơ bản trước
 
-- Tải file ảnh hình nền:
-   - Truy cập: `https://github.com/khaisilk1910/lich-block-am-duong-viet-nam/tree/main/images`
-   - Tải tất cả các ảnh trong thư mục `images` về máy
-   - Tạo mới folder `images` trong `\config\www\community\lich-block-am-duong-viet-nam\` và dán tất cả các file ảnh vào thư mục `images`
-     
-     <img width="1063" height="242" alt="image" src="https://github.com/user-attachments/assets/6546c7f0-b80e-4798-a773-76dfb384d019" />
-     <img width="1255" height="284" alt="image" src="https://github.com/user-attachments/assets/1a16e47a-9a9e-408e-b90b-b63ca520500d" />
-     
-- Sau đó quay trở lại Dashboard mà bạn muốn thêm một thẻ mới.
-  
-- Vào Edit Dashboard
-  
-  <img width="172" height="110" alt="image" src="https://github.com/user-attachments/assets/2447c0e3-0b85-4351-a8ed-51643e3e766c" />
-  
-- Thêm thẻ mới và điền **type: custom:lich-block-am-duong-viet-nam**
-  
-  <img width="1020" height="768" alt="image" src="https://github.com/user-attachments/assets/2aa98f8f-461a-4397-99a3-cf0fdc22755a" />
-  
-- Để xem lịch các tháng, các năm nhấn dấu **<< <** hoặc **> >>**
-  
-  <img width="505" height="541" alt="image" src="https://github.com/user-attachments/assets/16f9fab1-c6eb-49b7-97fb-dfb23f9ffeb3" />
-  
-- Để quay lại ngày hiện tại nhấn vào vị trí như ảnh
-  
-  <img width="509" height="543" alt="image" src="https://github.com/user-attachments/assets/ae841027-586b-4f80-805e-38be74392f94" />
+## Thông tin phát triển
 
+**Tác giả:** Nguyễn Tiến Khải (khaisilk1910)  
+**Nguồn dữ liệu:** Hồ Ngọc Đức & xemlicham.com  
+**Phiên bản:** 1.0.0  
+**License:** MIT
 
+## Đóng góp
 
-## Hình ảnh minh họa
+Mọi đóng góp đều được hoan nghênh! Vui lòng:
 
-<img width="502" height="542" alt="image" src="https://github.com/user-attachments/assets/dab7c097-e47b-4edd-8065-1fe305febc7e" /><img width="502" height="542" alt="image" src="https://github.com/user-attachments/assets/336e5d17-9ec1-4c1b-8c2e-4b1032496fd0" />
-<img width="502" height="542" alt="image" src="https://github.com/user-attachments/assets/0ba1009f-2c55-4ded-8662-00a99f230db9" /><img width="502" height="542" alt="image" src="https://github.com/user-attachments/assets/4ba88ff2-3aba-44d3-95c1-a7afed9a6452" />
+1. Fork repository
+2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Mở Pull Request
 
+## Changelog
 
+### Version 1.0.0 (2025-02-04)
+- Phát hành phiên bản đầu tiên
+- Hỗ trợ lịch âm dương Việt Nam
+- Hiển thị thông tin phong thủy
+- Tương tác chuyển tháng/năm
+- Popup chi tiết từng ngày
 
+## License
 
-*Card mình làm phục vụ mục đích cá nhân và lấy nguồn Âm Lịch từ Ho Ngoc Duc [http://come.to/duc]*
+MIT License - xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+
+---
+
+**Nếu thấy hữu ích, hãy cho repo một ⭐ nhé!**

@@ -1,8 +1,6 @@
 {
-  "name": "Lịch Block Âm Dương Việt Nam",
-  "content_in_root": true,
+  "name": "Lịch Âm Dương Việt Nam",
   "render_readme": true,
-  "country": ["VN"],
-  "homeassistant": "2024.1.0",
-  "hacs": "1.0.0"
+  "content_in_root": false,
+  "filename": "lich-block-am-duong-viet-nam.js"
 }
