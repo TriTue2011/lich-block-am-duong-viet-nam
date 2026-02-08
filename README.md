@@ -34,15 +34,18 @@ và <img width="101" height="36" alt="image" src="https://github.com/user-attach
 5. Thêm tài nguyên hoặc add Resources
 6. Url: /local/lich-block-am-duong.js và Resource type tự động là Loại tài nguyên (JavaScript) module (Mô-đun JavaScript)
 7. Tạo thẻ thủ công (custom card)
-8. 
-"type: custom:lich-am-duong-card
+ ```
+type: custom:lich-am-duong-card
 background: normal
-quote_entity: sensor.daily_quote"
+quote_entity: sensor.daily_quote
+ ```
 or
+ ```
 "type: custom:lich-am-duong-card
 background: transparent 
 background_opacity: 0.3  # 0-1
 quote_entity: sensor.daily_quote  # optional"
+ ```
 10. Restart Home Assistant
 11. Clear browser cache (Ctrl + F5)
 
