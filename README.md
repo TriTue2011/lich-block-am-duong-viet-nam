@@ -41,10 +41,10 @@ quote_entity: sensor.daily_quote
  ```
 or
  ```
-"type: custom:lich-am-duong-card
+type: custom:lich-am-duong-card
 background: transparent 
 background_opacity: 0.3  # 0-1
-quote_entity: sensor.daily_quote  # optional"
+quote_entity: sensor.daily_quote  # optional
  ```
 10. Restart Home Assistant
 11. Clear browser cache (Ctrl + F5)
