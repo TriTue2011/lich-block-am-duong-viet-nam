@@ -1,6 +1,6 @@
 // Lịch Âm Dương Việt Nam - Enhanced Version
 // Phát triển dựa trên code của Nguyễn Tiến Khải
-// Version: 2.1 - February 2026 - TRANSPARENT BACKGROUND SUPPORT
+// Version: 2.0 - February 2026
 
 (function(){
   'use strict';
@@ -168,65 +168,80 @@
   }
 
   function getMonthDays(mm, yy) {
-    const k = INT(0.5 + (jdFromDate(1, 1, yy) - 2415021.076998695) / 29.530588853);
-    let monthStart, monthEnd;
-    if (mm < 11) {
-      monthStart = getNewMoonDay(k + mm, 7);
-      monthEnd = getNewMoonDay(k + mm + 1, 7);
-    } else {
-      monthStart = getNewMoonDay(k + mm, 7);
-      monthEnd = getLunarMonth11(yy + 1, 7);
-    }
-    return monthEnd - monthStart;
-  }
-
-  function getLunarMonthAndYear(jd, timeZone) {
-    const year = jdToDate(jd)[2];
-    const a11 = getLunarMonth11(year, timeZone);
-    const b11 = getLunarMonth11(year - 1, timeZone);
-    const leapOff = getLeapMonthOffset(a11, timeZone);
-    let off, lunarYear, lunarMonth, lunarLeap;
-
-    if (jd < a11) {
-      off = jd - b11;
-      lunarYear = year - 1;
-    } else {
-      off = jd - a11;
-      lunarYear = year;
-    }
-
-    const k = INT(off / 29.0 + 0.5);
-    lunarMonth = k - leapOff;
-
-    if (lunarMonth === 0) {
-      lunarMonth = 12;
-    }
-    if (k === leapOff && leapOff > 0) {
-      lunarMonth = k - leapOff + 1;
-      lunarLeap = 1;
-    } else {
-      lunarLeap = 0;
-    }
-
-    return [lunarMonth, lunarYear, lunarLeap];
+    const off = jdFromDate(1, 1, yy) - 2415021;
+    const k = INT(off / 29.530588853);
+    const nm1 = getNewMoonDay(k + mm - 1, 7);
+    const nm2 = getNewMoonDay(k + mm, 7);
+    return nm2 - nm1;
   }
 
   function convertSolar2Lunar(dd, mm, yy, timeZone) {
-    const jd = jdFromDate(dd, mm, yy);
-    const [lunarMonth, lunarYear, lunarLeap] = getLunarMonthAndYear(jd, timeZone);
-    const a11 = getLunarMonth11(lunarYear, timeZone);
-    const b11 = getLunarMonth11(lunarYear - 1, timeZone);
-    const leapOff = getLeapMonthOffset(a11, timeZone);
-
-    let monthStart;
-    if (jd < a11) {
-      monthStart = b11 + INT((lunarMonth + leapOff) * 29.530588853 + 0.5);
-    } else {
-      monthStart = a11 + INT((lunarMonth + leapOff - 12) * 29.530588853 + 0.5);
+    const dayNumber = jdFromDate(dd, mm, yy);
+    const k = INT((dayNumber - 2415021.076998695) / 29.530588853);
+    let monthStart = getNewMoonDay(k + 1, timeZone);
+    if (monthStart > dayNumber) {
+      monthStart = getNewMoonDay(k, timeZone);
     }
-
-    const lunarDay = jd - monthStart + 1;
+    let a11 = getLunarMonth11(yy, timeZone);
+    let b11 = a11;
+    let lunarYear;
+    if (a11 >= monthStart) {
+      lunarYear = yy;
+      a11 = getLunarMonth11(yy - 1, timeZone);
+    } else {
+      lunarYear = yy + 1;
+      b11 = getLunarMonth11(yy + 1, timeZone);
+    }
+    const lunarDay = dayNumber - monthStart + 1;
+    const diff = INT((monthStart - a11) / 29);
+    let lunarLeap = 0;
+    let lunarMonth = diff + 11;
+    if (b11 - a11 > 365) {
+      const leapMonthDiff = getLeapMonthOffset(a11, timeZone);
+      if (diff >= leapMonthDiff) {
+        lunarMonth = diff + 10;
+        if (diff === leapMonthDiff) {
+          lunarLeap = 1;
+        }
+      }
+    }
+    if (lunarMonth > 12) {
+      lunarMonth = lunarMonth - 12;
+    }
+    if (lunarMonth >= 11 && diff < 4) {
+      lunarYear -= 1;
+    }
     return [lunarDay, lunarMonth, lunarYear, lunarLeap];
+  }
+
+  function convertLunar2Solar(lunarDay, lunarMonth, lunarYear, lunarLeap, timeZone) {
+    let a11, b11;
+    if (lunarMonth < 11) {
+      a11 = getLunarMonth11(lunarYear - 1, timeZone);
+      b11 = getLunarMonth11(lunarYear, timeZone);
+    } else {
+      a11 = getLunarMonth11(lunarYear, timeZone);
+      b11 = getLunarMonth11(lunarYear + 1, timeZone);
+    }
+    const k = INT(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+    let off = lunarMonth - 11;
+    if (off < 0) {
+      off += 12;
+    }
+    if (b11 - a11 > 365) {
+      const leapOff = getLeapMonthOffset(a11, timeZone);
+      let leapMonth = leapOff - 2;
+      if (leapMonth < 0) {
+        leapMonth += 12;
+      }
+      if (lunarLeap !== 0 && lunarMonth !== leapMonth) {
+        return [0, 0, 0];
+      } else if (lunarLeap !== 0 || off >= leapOff) {
+        off += 1;
+      }
+    }
+    const monthStart = getNewMoonDay(k + off, timeZone);
+    return jdToDate(monthStart + lunarDay - 1);
   }
 
   function jdToDate(jd) {
@@ -248,571 +263,743 @@
     return [day, month, year];
   }
 
-  function convertLunar2Solar(lunarDay, lunarMonth, lunarYear, lunarLeap, timeZone) {
-    if (lunarMonth < 1 || lunarMonth > 12 || lunarDay < 1 || lunarDay > 30) {
-      return [0, 0, 0];
-    }
-
-    const a11 = getLunarMonth11(lunarYear, timeZone);
-    const b11 = getLunarMonth11(lunarYear - 1, timeZone);
-    const leapOff = getLeapMonthOffset(a11, timeZone);
-
-    let monthStart;
-    if (lunarMonth < 11) {
-      monthStart = a11 + INT((lunarMonth + leapOff - 12) * 29.530588853 + 0.5);
-    } else {
-      monthStart = b11 + INT((lunarMonth + leapOff) * 29.530588853 + 0.5);
-    }
-
-    const jd = monthStart + lunarDay - 1;
-    return jdToDate(jd);
-  }
-
   function getCanChiYear(year) {
     return CAN[(year + 6) % 10] + ' ' + CHI[(year + 8) % 12];
   }
 
   function getCanChiMonth(month, year) {
-    const canIndex = (year * 12 + month + 3) % 10;
-    const chiIndex = (month + 1) % 12;
-    return CAN[canIndex] + ' ' + CHI[chiIndex];
+    const canMonth = ((year * 12 + month + 3) % 10);
+    return CAN[canMonth] + ' ' + CHI[(month + 1) % 12];
   }
 
   function getCanChiDay(jd) {
-    const canIndex = (jd + 9) % 10;
-    const chiIndex = (jd + 1) % 12;
-    return CAN[canIndex] + ' ' + CHI[chiIndex];
+    return CAN[(jd + 9) % 10] + ' ' + CHI[(jd + 1) % 12];
   }
 
   function getGioHoangDao(jd) {
-    const chiIndex = (jd + 1) % 12;
-    const gioHD = GIO_HD[chiIndex % 6];
-    const ret = [];
+    const chiDay = (jd + 1) % 12;
+    const gioHD = GIO_HD[chiDay % 6];
+    const result = [];
     for (let i = 0; i < 12; i++) {
       if (gioHD.charAt(i) === '1') {
-        ret.push(CHI[i]);
+        result.push(CHI[i]);
       }
     }
-    return ret;
+    return result;
   }
 
-  function getFestivals(dd, mm, ld, lm) {
+  function getFestivals(solarDay, solarMonth, lunarDay, lunarMonth) {
     const festivals = [];
-    const solarKey = mm + '/' + dd;
-    const lunarKey = lm + '/' + ld;
-
-    const solarIndex = NGAY_LE_DL.indexOf(solarKey);
-    if (solarIndex >= 0) {
-      festivals.push(NGAY_LE_DL_STRING[solarIndex]);
+    const solarDate = solarDay + '/' + solarMonth;
+    const lunarDate = lunarDay + '/' + lunarMonth;
+    
+    for (let i = 0; i < NGAY_LE_DL.length; i++) {
+      if (NGAY_LE_DL[i] === solarDate) {
+        festivals.push(NGAY_LE_DL_STRING[i]);
+      }
     }
-
-    const lunarIndex = NGAY_LE_AL.indexOf(lunarKey);
-    if (lunarIndex >= 0) {
-      festivals.push(NGAY_LE_AL_STRING[lunarIndex]);
+    
+    for (let i = 0; i < NGAY_LE_AL.length; i++) {
+      if (NGAY_LE_AL[i] === lunarDate) {
+        festivals.push(NGAY_LE_AL_STRING[i]);
+      }
     }
-
+    
     return festivals;
   }
 
-  // ===== WEB COMPONENT =====
+  // ===== CUSTOM CARD CLASS =====
   class LichAmDuongCard extends HTMLElement {
     constructor() {
       super();
       this.attachShadow({ mode: 'open' });
+      this._config = {};
       this.currentDate = new Date();
+      this.isTransparentBg = false;
+      this.isDatePickerOpen = false;
       this.isLunarMode = false;
     }
 
     setConfig(config) {
-      if (!config) {
-        throw new Error('Invalid configuration');
-      }
-
-      this.config = {
-        background: config.background || 'normal',
-        background_opacity: config.background_opacity !== undefined ? config.background_opacity : 0,
-        quote_entity: config.quote_entity || ''
-      };
-
-      this.render();
-      
-      // Wait for render to complete before updating
-      setTimeout(() => {
-        this.updateCalendar();
-      }, 50);
-    }
-
-    getQuoteFromSensor() {
-      if (this.config.quote_entity && this.hass) {
-        const state = this.hass.states[this.config.quote_entity];
-        if (state && state.state) {
-          const attrs = state.attributes || {};
-          return {
-            text: state.state,
-            author: attrs.author || attrs.attribution || 'Tác giả ẩn danh'
-          };
-        }
-      }
-
-      const randomIndex = Math.floor(Math.random() * DEFAULT_QUOTES.length);
-      return DEFAULT_QUOTES[randomIndex];
+      this._config = config;
+      this.isTransparentBg = config.background === 'transparent';
     }
 
     set hass(hass) {
       this._hass = hass;
-      if (this.config && this.config.quote_entity) {
-        const state = hass.states[this.config.quote_entity];
-        if (state && state.state !== this._lastQuoteState) {
-          this._lastQuoteState = state.state;
-          this.updateCalendar();
-        }
-      }
+      this.render();
     }
 
-    get hass() {
-      return this._hass;
+    connectedCallback() {
+      this.render();
+      this.setupEventListeners();
+      this.updateCalendar();
+    }
+
+    getQuoteFromSensor() {
+      if (this._hass) {
+        const quoteEntity = this._config.quote_entity;
+        if (quoteEntity) {
+          const state = this._hass.states[quoteEntity];
+          if (state) {
+            return {
+              text: state.state,
+              author: state.attributes.author || ''
+            };
+          }
+        }
+      }
+      
+      const day = this.currentDate.getDate();
+      const quoteIndex = day % DEFAULT_QUOTES.length;
+      return DEFAULT_QUOTES[quoteIndex];
     }
 
     render() {
-      const bgType = this.config.background;
-      const opacity = this.config.background_opacity;
-
       this.shadowRoot.innerHTML = `
         <style>
           :host {
             display: block;
-            width: 100%;
-            height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           }
 
-          .calendar-wrapper {
-            padding: 0;
+          * {
             box-sizing: border-box;
-            border-radius: 16px;
+            margin: 0;
+            padding: 0;
           }
 
-          /* Background styles */
-          ${bgType === 'transparent' ? `
-            .calendar-wrapper {
-              background: transparent;
-              border: 1px solid rgba(255, 255, 255, 0.3);
-            }
-          ` : `
-            .calendar-wrapper {
-              background: var(--ha-card-background, #fff);
-            }
-          `}
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+          }
 
-          .calendar-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+          .calendar-bloc {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+          }
+
+          .transparent .calendar-bloc {
+            background: transparent;
+            box-shadow: none;
+          }
+
+          .calendar-header {
+            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            color: white;
             padding: 20px;
-            min-height: 500px;
+            text-align: center;
+            position: relative;
           }
 
-          .month-year-section {
-            text-align: center;
-            margin-bottom: 20px;
+          .transparent .calendar-header {
+            background: transparent;
+          }
+
+          .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+          }
+
+          .nav-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+          }
+
+          .nav-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+          }
+
+          .today-button {
+            background: rgba(255, 255, 255, 0.9);
+            color: #7b1fa2;
+          }
+
+          .today-button:hover {
+            background: white;
           }
 
           .month-year-vi {
-            font-size: 1.8em;
+            font-size: 1.3em;
             font-weight: bold;
-            margin: 0;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'var(--primary-text-color, #000)'};
           }
 
           .month-year-en {
-            font-size: 1.1em;
-            font-weight: 300;
-            opacity: 0.8;
-            margin: 5px 0;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'var(--primary-text-color, #000)'};
+            font-size: 0.9em;
+            opacity: 0.9;
           }
 
-          .main-display {
-            display: flex;
-            gap: 30px;
-            width: 100%;
-            max-width: 900px;
-            margin-bottom: 20px;
-          }
-
-          .left-panel {
-            flex: 1;
+          .top-section {
             display: flex;
             flex-direction: column;
+            padding: 20px 30px 10px 30px;
+            gap: 15px;
             align-items: center;
-            justify-content: center;
+            background: linear-gradient(to bottom, #fff 0%, #f8f9fa 100%);
+          }
+
+          .transparent .top-section {
+            background: transparent;
           }
 
           .solar-day-large {
-            font-size: 8em;
+            font-size: 10em;
             font-weight: bold;
+            color: #333;
             line-height: 1;
-            margin: 10px 0;
-            color: ${bgType === 'transparent' ? '#ffff99' : '#FFC000'};
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
           }
 
-          .solar-day-large.sunday {
-            color: #e74c3c !important;
-          }
-
+          .solar-day-large.sunday,
           .solar-day-large.new-day {
-            color: ${bgType === 'transparent' ? '#ffff99' : '#3498db'} !important;
+            color: #e91e63;
+          }
+
+          .quote-author-container {
+            width: 100%;
           }
 
           .quote-section {
-            text-align: center;
-            padding: 15px;
+            width: 100%;
+            padding: 15px 30px;
+            background: rgba(123, 31, 162, 0.05);
             border-radius: 8px;
-            background: ${bgType === 'transparent' ? 'transparent' : 'rgba(100,100,100,0.1)'};
-            max-width: 300px;
-          }
-
-          .quote-text {
-            font-style: italic;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-            color: ${bgType === 'transparent' ? '#ffff99' : 'var(--primary-text-color, #333)'};
-          }
-
-          .quote-author {
-            font-size: 0.85em;
-            opacity: 0.8;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'var(--secondary-text-color, #666)'};
-          }
-
-          .right-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-          }
-
-          .weekday-section {
-            text-align: center;
-          }
-
-          .weekday-en {
-            font-size: 2em;
-            font-weight: 600;
-            margin: 0;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'var(--primary-text-color, #000)'};
-          }
-
-          .weekday-vi {
-            font-size: 1.2em;
-            font-weight: 300;
-            opacity: 0.9;
-            margin: 0;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'var(--primary-text-color, #000)'};
-          }
-
-          .weekday-en.sunday, .weekday-vi.sunday {
-            color: #e74c3c;
-          }
-
-          .festivals-row {
             display: flex;
             flex-direction: column;
             gap: 8px;
           }
 
-          .festival-item {
-            background: rgba(231, 76, 60, 0.1);
-            padding: 8px 12px;
-            border-radius: 5px;
-            border-left: 3px solid #e74c3c;
-            font-size: 0.9em;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'inherit'};
+          .quote-text {
+            font-style: italic;
+            color: #333;
+            line-height: 1.6;
+            text-align: center;
           }
 
-          .lunar-info {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            background: ${bgType === 'transparent' ? 'transparent' : 'rgba(255,255,255,0.1)'};
-            ${bgType === 'transparent' ? 'border: 1px solid rgba(255, 255, 255, 0.2);' : ''}
+          .author-section {
+            display: flex;
+            justify-content: flex-end;
+            padding-right: 10%;
           }
 
-          .lunar-info-item {
+          .quote-author-side {
+            color: #7b1fa2;
+            font-weight: 600;
+            font-size: 0.95em;
+            text-align: right;
+          }
+
+          .weekday-festivals-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            min-height: 80px;
             display: flex;
             flex-direction: column;
+            gap: 15px;
           }
 
-          .lunar-label {
-            font-size: 0.75em;
-            opacity: 0.7;
-            margin-bottom: 3px;
-            color: ${bgType === 'transparent' ? '#ffffff' : 'inherit'};
+          .transparent .weekday-festivals-section {
+            background: transparent;
           }
 
-          .lunar-value {
+          .festivals-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+            min-height: 40px;
+          }
+
+          .festival-item {
+            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(123, 31, 162, 0.3);
+          }
+
+          .weekday-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 30px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+          }
+
+          .transparent .weekday-row {
+            border-top: none;
+          }
+
+          .weekday-en {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+          }
+
+          .weekday-en.sunday {
+            color: #e91e63;
+          }
+
+          .weekday-vi {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #555;
+            text-align: center;
+          }
+
+          .weekday-vi.sunday {
+            color: #e91e63;
+          }
+
+          .weekday-separator {
+            width: 2px;
+            height: 40px;
+            background: #e0e0e0;
+          }
+
+          .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            padding: 20px 30px 30px 30px;
+            background: white;
+            align-items: center;
+          }
+
+          .transparent .bottom-section {
+            background: transparent;
+          }
+
+          .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .lunar-month-info {
             font-size: 1.1em;
             font-weight: 600;
-            color: ${bgType === 'transparent' ? '#ffff99' : '#0066cc'};
-          }
-
-          .lunar-day-big {
-            font-size: 3em;
-            font-weight: bold;
-            color: #e74c3c;
-          }
-
-          .controls-section {
+            color: #7b1fa2;
+            margin-bottom: 10px;
+            text-align: center;
+            min-height: 50px;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 100%;
-            max-width: 600px;
-            margin-top: 20px;
-            background: ${bgType === 'transparent' ? 'transparent' : 'rgba(255,255,255,0.05)'};
-            padding: 15px;
-            border-radius: 8px;
-            ${bgType === 'transparent' ? 'border: 1px solid rgba(255, 255, 255, 0.2);' : ''}
-          }
-
-          .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-          }
-
-          button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: all 0.3s;
-            background: ${bgType === 'transparent' ? 'rgba(255, 255, 255, 0.1)' : 'var(--primary-color, #3498db)'};
-            color: ${bgType === 'transparent' ? '#ffffff' : 'white'};
-          }
-
-          button:hover {
-            transform: translateY(-2px);
-            background: ${bgType === 'transparent' ? 'rgba(255, 255, 255, 0.2)' : 'var(--primary-color, #2980b9)'};
-          }
-
-          .date-input-section {
-            display: none;
-            flex-direction: column;
-            gap: 10px;
             align-items: center;
-            padding: 10px;
-            background: ${bgType === 'transparent' ? 'transparent' : 'rgba(255,255,255,0.05)'};
+            justify-content: center;
+          }
+
+          .can-chi-info {
+            font-size: 1em;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .label-small {
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+          }
+
+          .center-column {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .lunar-day-large {
+            font-size: 6em;
+            font-weight: bold;
+            color: #333;
+            line-height: 1;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+          }
+
+          .year-can-chi {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #7b1fa2;
+            padding: 8px 16px;
+            background: rgba(123, 31, 162, 0.1);
             border-radius: 8px;
-            margin-top: 5px;
-            opacity: 0;
+          }
+
+          .gio-hoang-dao-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #7b1fa2;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .gio-list {
+            font-size: 1em;
+            color: #555;
+            line-height: 1.8;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+          }
+
+          .date-picker-toggle {
+            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            color: white;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            margin-top: 20px;
+            border-radius: 12px 12px 0 0;
+          }
+
+          .date-picker-toggle:hover {
+            background: linear-gradient(135deg, #6a1589, #8b1f9f);
+          }
+
+          .toggle-title {
+            font-size: 1.1em;
+            font-weight: 600;
+          }
+
+          .toggle-icon {
+            transition: transform 0.3s;
+            font-size: 1.2em;
+          }
+
+          .toggle-icon.open {
+            transform: rotate(180deg);
+          }
+
+          .date-picker {
             max-height: 0;
             overflow: hidden;
-            transition: opacity 0.3s ease, max-height 0.3s ease;
+            transition: max-height 0.3s ease-out;
+            background: white;
+            border-radius: 0 0 12px 12px;
           }
 
-          .date-input-section.show {
-            display: flex;
-            opacity: 1;
-            max-height: 200px;
+          .date-picker.open {
+            max-height: 500px;
           }
 
-          .toggle-mode {
+          .calendar-type-toggle {
             display: flex;
             gap: 10px;
-            width: 100%;
+            padding: 20px 20px 10px 20px;
           }
 
-          .toggle-mode button {
+          .type-toggle-btn {
             flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.2s;
           }
 
-          .toggle-mode button.active {
-            background: #e74c3c;
+          .type-toggle-btn:hover {
+            border-color: #7b1fa2;
+          }
+
+          .type-toggle-btn.active {
+            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            color: white;
+            border-color: #7b1fa2;
           }
 
           .date-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            padding: 20px;
+          }
+
+          .date-input-group {
             display: flex;
-            gap: 10px;
-            align-items: center;
+            flex-direction: column;
+            gap: 5px;
           }
 
-          input[type="number"] {
-            width: 80px;
-            padding: 8px;
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 5px;
-            text-align: center;
+          .date-input-group label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #555;
+          }
+
+          .date-input-group input,
+          .date-input-group select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 1em;
-            background: ${bgType === 'transparent' ? 'rgba(255,255,255,0.1)' : 'white'};
-            color: ${bgType === 'transparent' ? '#ffffff' : '#000'};
+            transition: border-color 0.2s;
           }
 
-          .toggle-date-picker {
-            width: 100%;
-            background: ${bgType === 'transparent' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 255, 0.2)'};
-            color: ${bgType === 'transparent' ? '#ffffff' : 'white'};
+          .date-input-group input:focus,
+          .date-input-group select:focus {
+            outline: none;
+            border-color: #7b1fa2;
           }
 
-          .hidden {
+          .lunar-inputs {
             display: none;
           }
 
+          .lunar-inputs.active {
+            display: grid;
+          }
+
+          .solar-inputs.active {
+            display: grid;
+          }
+
+          .goto-btn {
+            margin: 0 20px 20px 20px;
+            padding: 12px;
+            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .goto-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(123, 31, 162, 0.3);
+          }
+
           @media (max-width: 768px) {
-            .main-display {
-              flex-direction: column;
-              gap: 20px;
-            }
-
             .solar-day-large {
-              font-size: 6em;
+              font-size: 7em;
             }
 
-            .weekday-en {
-              font-size: 1.5em;
+            .lunar-day-large {
+              font-size: 4em;
+            }
+
+            .bottom-section {
+              grid-template-columns: 1fr;
+              text-align: center;
+            }
+
+            .author-section {
+              justify-content: center;
+              padding-right: 0;
+            }
+
+            .quote-author-side {
+              text-align: center;
             }
           }
         </style>
 
-        <div class="calendar-wrapper">
-          <div class="calendar-container">
-            <div class="month-year-section">
-              <h2 class="month-year-vi" id="monthYearVi">Loading...</h2>
-              <p class="month-year-en" id="monthYearEn"></p>
+        <div class="container ${this.isTransparentBg ? 'transparent' : ''}">
+          <div class="calendar-bloc">
+            <div class="calendar-header">
+              <div class="header-controls">
+                <button class="nav-button" id="prevDay">◀ Hôm qua</button>
+                <button class="nav-button today-button" id="today">📅 Hôm nay</button>
+                <button class="nav-button" id="nextDay">Ngày mai ▶</button>
+              </div>
+              <div class="month-year-vi" id="monthYearVi"></div>
+              <div class="month-year-en" id="monthYearEn"></div>
             </div>
-
-            <div class="main-display">
-              <div class="left-panel">
-                <div id="solarDay" class="solar-day-large">1</div>
+            
+            <div class="top-section">
+              <div class="solar-day-large" id="solarDay"></div>
+              <div class="quote-author-container">
                 <div class="quote-section">
                   <div class="quote-text" id="quoteText"></div>
-                  <div class="quote-author" id="quoteAuthor"></div>
-                </div>
-              </div>
-
-              <div class="right-panel">
-                <div class="weekday-section">
-                  <div id="weekdayEn" class="weekday-en">Monday</div>
-                  <div id="weekdayVi" class="weekday-vi">Thứ Hai</div>
-                </div>
-
-                <div id="festivalsRow" class="festivals-row"></div>
-
-                <div class="lunar-info">
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Ngày âm</span>
-                    <span class="lunar-value lunar-day-big" id="lunarDay">1</span>
-                  </div>
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Tháng âm</span>
-                    <span class="lunar-value" id="lunarMonth">Giêng</span>
-                  </div>
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Ngày Can Chi</span>
-                    <span class="lunar-value" id="dayCanChi">Giáp Tý</span>
-                  </div>
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Tháng Can Chi</span>
-                    <span class="lunar-value" id="monthCanChi">Bính Dần</span>
-                  </div>
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Năm Can Chi</span>
-                    <span class="lunar-value" id="yearCanChi">Giáp Thìn</span>
-                  </div>
-                  <div class="lunar-info-item">
-                    <span class="lunar-label">Giờ hoàng đạo</span>
-                    <span class="lunar-value" id="gioHoangDao">Tý, Sửu, Dần</span>
+                  <div class="author-section">
+                    <div class="quote-author-side" id="quoteAuthor"></div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div class="controls-section">
-              <div class="nav-buttons">
-                <button id="btnPrevDay">← Ngày trước</button>
-                <button id="btnToday">Hôm nay</button>
-                <button id="btnNextDay">Ngày sau →</button>
+            
+            <div class="weekday-festivals-section">
+              <div class="festivals-row" id="festivalsRow"></div>
+              
+              <div class="weekday-row">
+                <div class="weekday-en" id="weekdayEn"></div>
+                <div class="weekday-separator"></div>
+                <div class="weekday-vi" id="weekdayVi"></div>
               </div>
-
-              <button class="toggle-date-picker" id="btnTogglePicker">Chọn ngày 🔽</button>
-
-              <div class="date-input-section" id="datePickerSection">
-                <div class="toggle-mode">
-                  <button id="toggleSolar" class="active">Dương lịch</button>
-                  <button id="toggleLunar">Âm lịch</button>
+            </div>
+            
+            <div class="bottom-section">
+              <div class="left-column">
+                <div class="lunar-month-info" id="lunarMonth"></div>
+                <div class="can-chi-info">
+                  <span class="label-small">Tháng</span><span id="monthCanChi"></span>
                 </div>
-
-                <div class="date-inputs" id="solarInputs">
-                  <input type="number" id="inputDay" min="1" max="31" value="1" />
-                  <span>/</span>
-                  <input type="number" id="inputMonth" min="1" max="12" value="1" />
-                  <span>/</span>
-                  <input type="number" id="inputYear" min="1900" max="2100" value="2024" />
-                  <button id="btnGotoSolar">Đi tới</button>
+                <div class="can-chi-info">
+                  <span class="label-small">Ngày</span><span id="dayCanChi"></span>
                 </div>
-
-                <div class="date-inputs hidden" id="lunarInputs">
-                  <input type="number" id="inputLunarDay" min="1" max="30" value="1" />
-                  <span>/</span>
-                  <input type="number" id="inputLunarMonth" min="1" max="12" value="1" />
-                  <span>/</span>
-                  <input type="number" id="inputLunarYear" min="1900" max="2100" value="2024" />
-                  <button id="btnGotoLunar">Đi tới</button>
+                <div class="can-chi-info">
+                  <span class="label-small">Giờ</span><span id="hourCanChi"></span>
                 </div>
+              </div>
+              
+              <div class="center-column">
+                <div class="lunar-day-large" id="lunarDay"></div>
+                <div class="year-can-chi" id="yearCanChi"></div>
+              </div>
+              
+              <div class="gio-hoang-dao-section">
+                <div class="label">GIỜ HOÀNG ĐẠO</div>
+                <div class="gio-list" id="gioHoangDao"></div>
               </div>
             </div>
           </div>
+
+          <div class="date-picker-toggle" id="datePickerToggle">
+            <span class="toggle-title">🗓️ Chọn ngày xem</span>
+            <span class="toggle-icon" id="toggleIcon">▼</span>
+          </div>
+          
+          <div class="date-picker" id="datePicker">
+            <div class="calendar-type-toggle">
+              <button class="type-toggle-btn active" id="toggleSolar">Dương lịch</button>
+              <button class="type-toggle-btn" id="toggleLunar">Âm lịch</button>
+            </div>
+
+            <div class="date-inputs solar-inputs active" id="solarInputs">
+              <div class="date-input-group">
+                <label>Ngày</label>
+                <input type="number" id="inputDay" min="1" max="31" value="1">
+              </div>
+              <div class="date-input-group">
+                <label>Tháng</label>
+                <input type="number" id="inputMonth" min="1" max="12" value="1">
+              </div>
+              <div class="date-input-group">
+                <label>Năm</label>
+                <input type="number" id="inputYear" min="1900" max="2100" value="2025">
+              </div>
+            </div>
+
+            <div class="date-inputs lunar-inputs" id="lunarInputs">
+              <div class="date-input-group">
+                <label>Ngày ÂL</label>
+                <input type="number" id="inputLunarDay" min="1" max="30" value="1">
+              </div>
+              <div class="date-input-group">
+                <label>Tháng ÂL</label>
+                <select id="inputLunarMonth">
+                  <option value="1">Giêng</option>
+                  <option value="2">Hai</option>
+                  <option value="3">Ba</option>
+                  <option value="4">Tư</option>
+                  <option value="5">Năm</option>
+                  <option value="6">Sáu</option>
+                  <option value="7">Bảy</option>
+                  <option value="8">Tám</option>
+                  <option value="9">Chín</option>
+                  <option value="10">Mười</option>
+                  <option value="11">Một</option>
+                  <option value="12">Chạp</option>
+                </select>
+              </div>
+              <div class="date-input-group">
+                <label>Năm ÂL</label>
+                <input type="number" id="inputLunarYear" min="1900" max="2100" value="2025">
+              </div>
+            </div>
+
+            <button class="goto-btn" id="gotoDate">Xem ngày này</button>
+          </div>
         </div>
       `;
-
-      this.setupEventListeners();
     }
 
     setupEventListeners() {
       const $ = (id) => this.shadowRoot.getElementById(id);
 
-      $('btnPrevDay').addEventListener('click', () => this.changeDay(-1));
-      $('btnNextDay').addEventListener('click', () => this.changeDay(1));
-      $('btnToday').addEventListener('click', () => this.gotoToday());
-      $('btnGotoSolar').addEventListener('click', () => this.gotoDate());
-      $('btnGotoLunar').addEventListener('click', () => this.gotoDate());
-      $('toggleSolar').addEventListener('click', () => this.toggleInputMode(false));
-      $('toggleLunar').addEventListener('click', () => this.toggleInputMode(true));
-      
-      $('btnTogglePicker').addEventListener('click', () => {
-        const section = $('datePickerSection');
-        const btn = $('btnTogglePicker');
-        
-        if (section.classList.contains('show')) {
-          section.classList.remove('show');
-          btn.textContent = 'Chọn ngày 🔽';
-        } else {
-          section.classList.add('show');
-          btn.textContent = 'Thu gọn 🔼';
-        }
-      });
+      $('prevDay')?.addEventListener('click', () => this.changeDay(-1));
+      $('nextDay')?.addEventListener('click', () => this.changeDay(1));
+      $('today')?.addEventListener('click', () => this.gotoToday());
+      $('datePickerToggle')?.addEventListener('click', () => this.toggleDatePicker());
+      $('toggleSolar')?.addEventListener('click', () => this.toggleCalendarType('solar'));
+      $('toggleLunar')?.addEventListener('click', () => this.toggleCalendarType('lunar'));
+      $('gotoDate')?.addEventListener('click', () => this.gotoDate());
     }
 
-    toggleInputMode(isLunar) {
-      this.isLunarMode = isLunar;
-      const $ = (id) => this.shadowRoot.getElementById(id);
+    toggleDatePicker() {
+      this.isDatePickerOpen = !this.isDatePickerOpen;
+      const datePicker = this.shadowRoot.getElementById('datePicker');
+      const toggleIcon = this.shadowRoot.getElementById('toggleIcon');
       
-      const solarInputs = $('solarInputs');
-      const lunarInputs = $('lunarInputs');
-      const toggleSolar = $('toggleSolar');
-      const toggleLunar = $('toggleLunar');
+      if (this.isDatePickerOpen) {
+        datePicker.classList.add('open');
+        toggleIcon.classList.add('open');
+      } else {
+        datePicker.classList.remove('open');
+        toggleIcon.classList.remove('open');
+      }
+    }
 
-      if (isLunar) {
-        solarInputs.classList.add('hidden');
-        lunarInputs.classList.remove('hidden');
+    toggleCalendarType(type) {
+      this.isLunarMode = type === 'lunar';
+      
+      const solarInputs = this.shadowRoot.getElementById('solarInputs');
+      const lunarInputs = this.shadowRoot.getElementById('lunarInputs');
+      const toggleSolar = this.shadowRoot.getElementById('toggleSolar');
+      const toggleLunar = this.shadowRoot.getElementById('toggleLunar');
+      
+      if (this.isLunarMode) {
+        solarInputs.classList.remove('active');
+        lunarInputs.classList.add('active');
         toggleSolar.classList.remove('active');
         toggleLunar.classList.add('active');
       } else {
-        solarInputs.classList.remove('hidden');
-        lunarInputs.classList.add('hidden');
+        solarInputs.classList.add('active');
+        lunarInputs.classList.remove('active');
         toggleSolar.classList.add('active');
         toggleLunar.classList.remove('active');
       }
@@ -865,18 +1052,6 @@
     }
 
     updateCalendar() {
-      // Wait for DOM to be ready
-      if (!this.shadowRoot) return;
-      
-      const $ = (id) => this.shadowRoot.getElementById(id);
-      
-      // Check if elements exist
-      if (!$('monthYearVi')) {
-        // DOM not ready yet, try again in a moment
-        setTimeout(() => this.updateCalendar(), 100);
-        return;
-      }
-      
       const dd = this.currentDate.getDate();
       const mm = this.currentDate.getMonth() + 1;
       const yy = this.currentDate.getFullYear();
@@ -912,6 +1087,8 @@
       const monthsEn = ['January', 'February', 'March', 'April', 'May', 'June',
                         'July', 'August', 'September', 'October', 'November', 'December'];
 
+      const $ = (id) => this.shadowRoot.getElementById(id);
+      
       $('monthYearVi').textContent = `${monthsVi[mm - 1]} ${yy}`;
       $('monthYearEn').textContent = monthsEn[mm - 1];
       
@@ -962,7 +1139,6 @@
     static getStubConfig() {
       return {
         background: 'normal',
-        background_opacity: 0,
         quote_entity: ''
       };
     }
@@ -974,12 +1150,12 @@
   window.customCards.push({
     type: 'lich-am-duong-card',
     name: 'Lịch Âm Dương Việt Nam',
-    description: 'Lịch bloc âm dương với nền trong suốt',
+    description: 'Lịch bloc âm dương enhanced với giao diện đẹp',
     preview: true
   });
 
   console.info(
-    '%c LỊCH-ÂM-DƯƠNG-CARD %c Version 2.1 - Transparent Support ',
+    '%c LỊCH-ÂM-DƯƠNG-CARD %c Version 2.0 ',
     'color: white; background: #7b1fa2; font-weight: 700;',
     'color: #7b1fa2; background: white; font-weight: 700;'
   );
