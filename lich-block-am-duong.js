@@ -1,6 +1,7 @@
 // Lịch Âm Dương Việt Nam - Enhanced Version
 // Phát triển dựa trên code của Nguyễn Tiến Khải
-// Version: 2.0 - February 2026
+// Version: 2.1 - February 2026 - FIXED DISPLAY BUG
+// Cải tiến: Background opacity, Toggle "Chọn ngày xem" giống "Xem thêm", Sửa lỗi hiển thị
 
 (function(){
   'use strict';
@@ -315,23 +316,35 @@
       this.attachShadow({ mode: 'open' });
       this._config = {};
       this.currentDate = new Date();
-      this.isTransparentBg = false;
       this.isDatePickerOpen = false;
       this.isLunarMode = false;
+      this._isRendered = false;
     }
 
     setConfig(config) {
       this._config = config;
-      this.isTransparentBg = config.background === 'transparent';
+      this.backgroundOpacity = typeof config.background_opacity === 'number' 
+        ? Math.max(0, Math.min(1, config.background_opacity)) 
+        : 0;
+      
+      if (config.background === 'transparent' && this.backgroundOpacity === 0) {
+        this.backgroundOpacity = 1;
+      }
     }
 
     set hass(hass) {
       this._hass = hass;
-      this.render();
+      if (!this._isRendered) {
+        this.render();
+        this._isRendered = true;
+      }
     }
 
     connectedCallback() {
-      this.render();
+      if (!this._isRendered) {
+        this.render();
+        this._isRendered = true;
+      }
       this.setupEventListeners();
       this.updateCalendar();
     }
@@ -356,11 +369,15 @@
     }
 
     render() {
+      const bgOpacity = this.backgroundOpacity;
+      const isTransparent = bgOpacity > 0;
+      
       this.shadowRoot.innerHTML = `
         <style>
           :host {
-            display: block;
+            display: block !important;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            position: relative !important;
           }
 
           * {
@@ -370,48 +387,47 @@
           }
 
           .container {
-            max-width: 800px;
+            max-width: 400px;
             margin: 0 auto;
             position: relative;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
 
           .calendar-bloc {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: ${isTransparent ? `rgba(255, 255, 255, ${1 - bgOpacity})` : 'white'};
+            border-radius: 12px;
+            box-shadow: ${isTransparent ? 'none' : '0 20px 60px rgba(0, 0, 0, 0.3)'};
+            ${isTransparent ? 'border: 1px solid rgba(255, 255, 255, 0.3);' : ''}
             overflow: hidden;
-          }
-
-          .transparent .calendar-bloc {
-            background: transparent;
-            box-shadow: none;
+            position: relative;
+            z-index: 1;
+            display: block !important;
+            visibility: visible !important;
           }
 
           .calendar-header {
-            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            background: ${isTransparent ? 'rgba(123, 31, 162, 0.3)' : 'linear-gradient(135deg, #7b1fa2, #9c27b0)'};
             color: white;
-            padding: 20px;
+            padding: 10px;
             text-align: center;
             position: relative;
-          }
-
-          .transparent .calendar-header {
-            background: transparent;
           }
 
           .header-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
           }
 
           .nav-button {
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 4px 8px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
@@ -432,34 +448,30 @@
           }
 
           .month-year-vi {
-            font-size: 1.3em;
+            font-size: 1em;
             font-weight: bold;
           }
 
           .month-year-en {
-            font-size: 0.9em;
+            font-size: 0.7em;
             opacity: 0.9;
           }
 
           .top-section {
             display: flex;
             flex-direction: column;
-            padding: 20px 30px 10px 30px;
-            gap: 15px;
+            padding: 5px 8px 3px 8px;
+            gap: 8px;
             align-items: center;
-            background: linear-gradient(to bottom, #fff 0%, #f8f9fa 100%);
-          }
-
-          .transparent .top-section {
-            background: transparent;
+            background: ${isTransparent ? 'transparent' : 'linear-gradient(to bottom, #fff 0%, #f8f9fa 100%)'};
           }
 
           .solar-day-large {
-            font-size: 10em;
+            font-size: 4em;
             font-weight: bold;
-            color: #333;
+            color: ${isTransparent ? '#fff' : '#333'};
             line-height: 1;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            text-shadow: ${isTransparent ? '2px 2px 8px rgba(0,0,0,0.5)' : '2px 2px 4px rgba(0,0,0,0.1)'};
           }
 
           .solar-day-large.sunday,
@@ -473,9 +485,9 @@
 
           .quote-section {
             width: 100%;
-            padding: 15px 30px;
-            background: rgba(123, 31, 162, 0.05);
-            border-radius: 8px;
+            padding: 4px 8px;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.1)' : 'rgba(123, 31, 162, 0.05)'};
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -483,52 +495,48 @@
 
           .quote-text {
             font-style: italic;
-            color: #333;
-            line-height: 1.6;
+            color: ${isTransparent ? '#fff' : '#333'};
+            line-height: 1.6; font-size: 1em;
             text-align: center;
           }
 
           .author-section {
             display: flex;
             justify-content: flex-end;
-            padding-right: 10%;
+            padding-right: 5%;
           }
 
           .quote-author-side {
-            color: #7b1fa2;
+            color: ${isTransparent ? '#fff' : '#7b1fa2'};
             font-weight: 600;
-            font-size: 0.95em;
+            font-size: 0.7em;
             text-align: right;
           }
 
           .weekday-festivals-section {
-            padding: 20px 30px;
-            background: #f8f9fa;
-            min-height: 80px;
+            padding: 8px 12px;
+            background: ${isTransparent ? 'transparent' : '#f8f9fa'};
+            min-height: 40px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
-          }
-
-          .transparent .weekday-festivals-section {
-            background: transparent;
+            gap: 8px;
           }
 
           .festivals-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 6px;
             justify-content: center;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             min-height: 40px;
           }
 
           .festival-item {
             background: linear-gradient(135deg, #7b1fa2, #9c27b0);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
             font-weight: 500;
             box-shadow: 0 2px 8px rgba(123, 31, 162, 0.3);
           }
@@ -537,19 +545,15 @@
             display: grid;
             grid-template-columns: 1fr auto 1fr;
             align-items: center;
-            gap: 30px;
-            border-top: 1px solid #e0e0e0;
+            gap: 8px;
+            border-top: ${isTransparent ? 'none' : '1px solid #e0e0e0'};
             padding-top: 15px;
           }
 
-          .transparent .weekday-row {
-            border-top: none;
-          }
-
           .weekday-en {
-            font-size: 1.3em;
+            font-size: 1.5em;
             font-weight: 600;
-            color: #333;
+            color: ${isTransparent ? '#fff' : '#333'};
             text-align: center;
           }
 
@@ -558,9 +562,9 @@
           }
 
           .weekday-vi {
-            font-size: 1.5em;
+            font-size: 1.8em;
             font-weight: bold;
-            color: #555;
+            color: ${isTransparent ? '#fff' : '#555'};
             text-align: center;
           }
 
@@ -569,57 +573,56 @@
           }
 
           .weekday-separator {
-            width: 2px;
-            height: 40px;
-            background: #e0e0e0;
+            width: 1px;
+            height: 24px;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.3)' : '#e0e0e0'};
           }
 
           .bottom-section {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 20px;
-            padding: 20px 30px 30px 30px;
-            background: white;
+            gap: 6px;
+            padding: 10px 16px 16px 16px;
+            background: ${isTransparent ? 'transparent' : 'white'};
             align-items: center;
-          }
-
-          .transparent .bottom-section {
-            background: transparent;
+            min-width: 0;
           }
 
           .left-column {
+            min-width: 0;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             gap: 8px;
           }
 
           .lunar-month-info {
-            font-size: 1.1em;
+            font-size: 0.8em;
             font-weight: 600;
-            color: #7b1fa2;
-            margin-bottom: 10px;
+            color: ${isTransparent ? '#fff' : '#7b1fa2'};
+            margin-bottom: 6px;
             text-align: center;
-            min-height: 50px;
+            min-height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
           }
 
           .can-chi-info {
-            font-size: 1em;
-            color: #555;
+            font-size: 0.7em;
+            color: ${isTransparent ? '#fff' : '#555'};
             display: flex;
             align-items: center;
             gap: 8px;
           }
 
           .label-small {
-            background: #f0f0f0;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.2)' : '#f0f0f0'};
+            padding: 2px 4px;
+            border-radius: 12px;
+            font-size: 0.5em;
             font-weight: 600;
-            min-width: 50px;
+            min-width: 36px;
             text-align: center;
           }
 
@@ -628,58 +631,59 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
           }
 
           .lunar-day-large {
-            font-size: 6em;
+            font-size: 4em;
             font-weight: bold;
-            color: #333;
+            color: ${isTransparent ? '#fff' : '#333'};
             line-height: 1;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            text-shadow: ${isTransparent ? '2px 2px 6px rgba(0,0,0,0.5)' : '2px 2px 4px rgba(0,0,0,0.1)'};
           }
 
           .year-can-chi {
-            font-size: 1.3em;
+            font-size: 1em;
             font-weight: 600;
-            color: #7b1fa2;
-            padding: 8px 16px;
-            background: rgba(123, 31, 162, 0.1);
-            border-radius: 8px;
+            color: ${isTransparent ? '#fff' : '#7b1fa2'};
+            padding: 4px 8px;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.2)' : 'rgba(123, 31, 162, 0.1)'};
+            border-radius: 12px;
           }
 
           .gio-hoang-dao-section {
             text-align: center;
             display: flex;
             flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
           }
 
           .label {
-            font-size: 0.9em;
+            font-size: 0.8em;
             font-weight: 600;
-            color: #7b1fa2;
-            margin-bottom: 10px;
-            text-transform: uppercase;
+            color: ${isTransparent ? '#fff' : '#7b1fa2'};
+            margin-bottom: 6px;
             letter-spacing: 1px;
             text-align: center;
-            min-height: 50px;
+            min-height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
           }
 
           .gio-list {
-            font-size: 1em;
-            color: #555;
-            line-height: 1.8;
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
+            font-size: 0.7em;
+            color: ${isTransparent ? '#fff' : '#555'};
+            line-height: 1.4;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.1)' : '#f8f9fa'};
+            padding: 6px;
+            border-radius: 12px;
             text-align: center;
           }
 
           .date-picker-toggle {
-            background: linear-gradient(135deg, #7b1fa2, #9c27b0);
+            background: ${isTransparent ? 'rgba(123, 31, 162, 0.3)' : 'linear-gradient(135deg, #7b1fa2, #9c27b0)'};
             color: white;
             padding: 15px 20px;
             cursor: pointer;
@@ -687,22 +691,23 @@
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s;
-            margin-top: 20px;
-            border-radius: 12px 12px 0 0;
+            margin-top: 10px;
+            border-radius: 6px 6px 0 0;
+            border: ${isTransparent ? '1px solid rgba(255, 255, 255, 0.2)' : 'none'};
           }
 
           .date-picker-toggle:hover {
-            background: linear-gradient(135deg, #6a1589, #8b1f9f);
+            background: ${isTransparent ? 'rgba(123, 31, 162, 0.5)' : 'linear-gradient(135deg, #6a1589, #8b1f9f)'};
           }
 
           .toggle-title {
-            font-size: 1.1em;
+            font-size: 0.8em;
             font-weight: 600;
           }
 
           .toggle-icon {
             transition: transform 0.3s;
-            font-size: 1.2em;
+            font-size: 0.6em;
           }
 
           .toggle-icon.open {
@@ -712,27 +717,32 @@
           .date-picker {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
-            background: white;
+            transition: max-height 0.4s ease-out, opacity 0.4s ease;
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.05)' : 'white'};
             border-radius: 0 0 12px 12px;
+            opacity: 0;
+            border: ${isTransparent ? '1px solid rgba(255, 255, 255, 0.2)' : 'none'};
+            border-top: none;
           }
 
           .date-picker.open {
             max-height: 500px;
+            opacity: 1;
           }
 
           .calendar-type-toggle {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             padding: 20px 20px 10px 20px;
           }
 
           .type-toggle-btn {
             flex: 1;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            background: white;
-            border-radius: 8px;
+            padding: 6px;
+            border: 2px solid ${isTransparent ? 'rgba(255, 255, 255, 0.3)' : '#e0e0e0'};
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.1)' : 'white'};
+            color: ${isTransparent ? '#fff' : '#333'};
+            border-radius: 12px;
             cursor: pointer;
             font-size: 1em;
             font-weight: 600;
@@ -752,27 +762,28 @@
           .date-inputs {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            padding: 20px;
+            gap: 8px;
+            padding: 10px;
           }
-
           .date-input-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
           }
 
           .date-input-group label {
-            font-size: 0.9em;
+            font-size: 0.7em;
             font-weight: 600;
-            color: #555;
+            color: ${isTransparent ? '#fff' : '#555'};
           }
 
           .date-input-group input,
           .date-input-group select {
             padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            border: 1px solid ${isTransparent ? 'rgba(255, 255, 255, 0.3)' : '#e0e0e0'};
+            background: ${isTransparent ? 'rgba(255, 255, 255, 0.1)' : 'white'};
+            color: ${isTransparent ? '#fff' : '#333'};
+            border-radius: 12px;
             font-size: 1em;
             transition: border-color 0.2s;
           }
@@ -781,6 +792,12 @@
           .date-input-group select:focus {
             outline: none;
             border-color: #7b1fa2;
+          }
+
+
+
+          .solar-inputs {
+            display: none;
           }
 
           .lunar-inputs {
@@ -794,14 +811,13 @@
           .solar-inputs.active {
             display: grid;
           }
-
           .goto-btn {
             margin: 0 20px 20px 20px;
-            padding: 12px;
+            padding: 6px;
             background: linear-gradient(135deg, #7b1fa2, #9c27b0);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 1em;
             font-weight: 600;
             cursor: pointer;
@@ -813,19 +829,108 @@
             box-shadow: 0 4px 12px rgba(123, 31, 162, 0.3);
           }
 
+          /* Popup styles */
+          .ha-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 99999;
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            backdrop-filter: blur(4px);
+          }
+
+          .ha-popup.show {
+            display: flex;
+          }
+
+          .ha-popup-box {
+            background: var(--card-background-color, #1e1e1e);
+            color: var(--primary-text-color, #fff);
+            width: 100%;
+            max-width: 500px;
+            max-height: 85%;
+            border-radius: 18px 18px 0 0;
+            padding: 20px;
+            overflow: auto;
+            animation: slideUp 0.3s ease;
+            margin-bottom: 0;
+          }
+
+          @media (min-width: 600px) {
+            .ha-popup {
+              align-items: center;
+            }
+            .ha-popup-box {
+              border-radius: 18px;
+              margin-bottom: auto;
+              width: 400px;
+            }
+          }
+
+          .ha-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+          }
+
+          .ha-popup-close {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s;
+          }
+
+          .ha-popup-close:hover {
+            transform: scale(1.2);
+          }
+
+          .ha-popup-content {
+            line-height: 1.6;
+          }
+
+          .ha-popup-content p {
+            margin: 8px 0;
+            font-size: 15px;
+            line-height: 1.5;
+          }
+
+          @keyframes slideUp {
+            from {
+              transform: translateY(100%);
+            }
+            to {
+              transform: translateY(0);
+            }
+          }
+
+          .solar-day-large {
+            cursor: pointer;
+            transition: transform 0.2s;
+          }
+
+          .solar-day-large:hover {
+            transform: scale(1.05);
+          }
+
           @media (max-width: 768px) {
             .solar-day-large {
-              font-size: 7em;
-            }
-
-            .lunar-day-large {
               font-size: 4em;
             }
 
-            .bottom-section {
-              grid-template-columns: 1fr;
-              text-align: center;
+            .lunar-day-large {
+              font-size: 3em;
             }
+
 
             .author-section {
               justify-content: center;
@@ -838,7 +943,7 @@
           }
         </style>
 
-        <div class="container ${this.isTransparentBg ? 'transparent' : ''}">
+        <div class="container">
           <div class="calendar-bloc">
             <div class="calendar-header">
               <div class="header-controls">
@@ -892,7 +997,7 @@
               </div>
               
               <div class="gio-hoang-dao-section">
-                <div class="label">GIỜ HOÀNG ĐẠO</div>
+                <div class="label">Giờ Hoàng Đạo</div>
                 <div class="gio-list" id="gioHoangDao"></div>
               </div>
             </div>
@@ -900,7 +1005,7 @@
 
           <div class="date-picker-toggle" id="datePickerToggle">
             <span class="toggle-title">🗓️ Chọn ngày xem</span>
-            <span class="toggle-icon" id="toggleIcon">▼</span>
+            <span class="toggle-icon" id="toggleIcon">🔽</span>
           </div>
           
           <div class="date-picker" id="datePicker">
@@ -954,6 +1059,17 @@
 
             <button class="goto-btn" id="gotoDate">Xem ngày này</button>
           </div>
+
+          <!-- Popup chi tiết ngày -->
+          <div id="ha-lich-popup" class="ha-popup">
+            <div class="ha-popup-box">
+              <div class="ha-popup-header">
+                <span id="ha-popup-title">Chi tiết</span>
+                <span class="ha-popup-close" id="popupClose">✕</span>
+              </div>
+              <div id="ha-popup-content" class="ha-popup-content"></div>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -968,7 +1084,15 @@
       $('toggleSolar')?.addEventListener('click', () => this.toggleCalendarType('solar'));
       $('toggleLunar')?.addEventListener('click', () => this.toggleCalendarType('lunar'));
       $('gotoDate')?.addEventListener('click', () => this.gotoDate());
+      
+      // Popup event listeners
+      $('solarDay')?.addEventListener('click', () => this.showDayPopup());
+      $('popupClose')?.addEventListener('click', () => this.closePopup());
+      $('ha-lich-popup')?.addEventListener('click', (e) => {
+        if (e.target.id === 'ha-lich-popup') this.closePopup();
+      });
     }
+
 
     toggleDatePicker() {
       this.isDatePickerOpen = !this.isDatePickerOpen;
@@ -1022,6 +1146,13 @@
         
         this.currentDate = new Date(solar[2], solar[1] - 1, solar[0]);
         this.updateCalendar();
+        this.toggleDatePicker();
+        
+        // Nếu popup đang mở, cập nhật nội dung popup
+        const popup2 = $('ha-lich-popup');
+        if (popup2 && popup2.classList.contains('show')) {
+          this.showDayPopup();
+        }
       } else {
         const day = parseInt($('inputDay').value);
         const month = parseInt($('inputMonth').value);
@@ -1032,6 +1163,13 @@
           if (newDate.getMonth() === month - 1) {
             this.currentDate = newDate;
             this.updateCalendar();
+            this.toggleDatePicker();
+            
+            // Nếu popup đang mở, cập nhật nội dung popup
+            const popup3 = $('ha-lich-popup');
+            if (popup3 && popup3.classList.contains('show')) {
+              this.showDayPopup();
+            }
           } else {
             alert('Ngày không hợp lệ!');
           }
@@ -1044,11 +1182,25 @@
     changeDay(delta) {
       this.currentDate.setDate(this.currentDate.getDate() + delta);
       this.updateCalendar();
+      
+      // Nếu popup đang mở, cập nhật nội dung popup
+      const $ = (id) => this.shadowRoot.getElementById(id);
+      const popup = $('ha-lich-popup');
+      if (popup && popup.classList.contains('show')) {
+        this.showDayPopup();
+      }
     }
 
     gotoToday() {
       this.currentDate = new Date();
       this.updateCalendar();
+      
+      // Nếu popup đang mở, cập nhật nội dung popup
+      const $ = (id) => this.shadowRoot.getElementById(id);
+      const popup = $('ha-lich-popup');
+      if (popup && popup.classList.contains('show')) {
+        this.showDayPopup();
+      }
     }
 
     updateCalendar() {
@@ -1130,8 +1282,139 @@
       $('inputDay').value = dd;
       $('inputMonth').value = mm;
       $('inputYear').value = yy;
+      $('inputLunarDay').value = lunarDay;
+      $('inputLunarMonth').value = lunarMonth;
+      $('inputLunarYear').value = lunarYear;
     }
 
+
+    closePopup() {
+      const $ = (id) => this.shadowRoot.getElementById(id);
+      const popup = $('ha-lich-popup');
+      if (popup) popup.classList.remove('show');
+    }
+
+    showDayPopup() {
+      const $ = (id) => this.shadowRoot.getElementById(id);
+      const popup = $('ha-lich-popup');
+      if (!popup) return;
+
+      try {
+        const dd = this.currentDate.getDate();
+        const mm = this.currentDate.getMonth() + 1;
+        const yy = this.currentDate.getFullYear();
+        const dayOfWeek = this.currentDate.getDay();
+
+        // Tính toán dữ liệu
+        const lunar = convertSolar2Lunar(dd, mm, yy, 7);
+        const lunarDay = lunar[0];
+        const lunarMonth = lunar[1];
+        const lunarYear = lunar[2];
+        const lunarLeap = lunar[3];
+
+        const jd = jdFromDate(dd, mm, yy);
+        const canChiYear = getCanChiYear(lunarYear);
+        const canChiMonth = getCanChiMonth(lunarMonth, lunarYear);
+        const canChiDay = getCanChiDay(jd);
+        const canChiHour = CAN[(jd + 9) % 10];
+
+        // Giờ Hoàng Đạo
+        const gioHoangDao = getGioHoangDao(jd);
+        const gioHDString = gioHoangDao.join(', ');
+
+        // Tên tháng âm
+        let lunarMonthName = THANG_AM[lunarMonth];
+        if (lunarLeap) lunarMonthName = 'Nhuận ' + lunarMonthName;
+
+        const monthDays = getMonthDays(lunarMonth, lunarYear);
+        const monthType = monthDays === 30 ? "(Đ)" : "(T)";
+
+        // Lễ hội
+        const festivals = getFestivals(dd, mm, lunarDay, lunarMonth);
+        let festivalString = '';
+        if (festivals.length > 0) {
+          festivalString = festivals.map(f => `🎉 ${f}`).join('<br>');
+        }
+
+        // Tạo HTML
+        let res = `<div class="lunar-popup-detail" style="font-family: sans-serif; font-size: 1.1em; color: var(--primary-text-color); padding-bottom: 10px;">`;
+        
+        // Header
+        res += `
+            <div style="text-align:center; margin-bottom:15px;">
+                <div style="font-size:1.5em; font-weight:bold; color:#ffff99;">Ngày ${dd} tháng ${mm} năm ${yy}</div>
+                <div style="font-size:1.1em; opacity:0.9; margin-top:5px;">${TUAN_VI[dayOfWeek]}</div>
+            </div>
+        `;
+
+        // Lịch âm & Can Chi
+        res += `
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                <table style="width:100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid rgba(125,125,125,0.2);">
+                        <td style="padding:8px 0; opacity:0.8; width:40%;">Âm lịch:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${lunarDay}/${lunarMonth}/${lunarYear} ${lunarLeap?'(Nhuận)':''}</b></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(125,125,125,0.2);">
+                        <td style="padding:8px 0; opacity:0.8;">Tháng âm:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${lunarMonthName} ${monthType}</b></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(125,125,125,0.2);">
+                        <td style="padding:8px 0; opacity:0.8;">Can Chi Năm:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${canChiYear}</b></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(125,125,125,0.2);">
+                        <td style="padding:8px 0; opacity:0.8;">Can Chi Tháng:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${canChiMonth}</b></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(125,125,125,0.2);">
+                        <td style="padding:8px 0; opacity:0.8;">Can Chi Ngày:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${canChiDay}</b></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0; opacity:0.8;">Khởi giờ:</td>
+                        <td style="text-align:right;"><b style="color:#ffff99;">${canChiHour} Tý</b></td>
+                    </tr>
+                </table>
+            </div>
+        `;
+
+        // Giờ Hoàng Đạo
+        res += `
+            <div style="background: rgba(123, 31, 162, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 15px; border: 1px solid rgba(123, 31, 162, 0.3);">
+                <div style="font-weight:bold; margin-bottom:8px; color:#ffff99;">⭐ Giờ Hoàng Đạo:</div>
+                <div style="font-size:1.05em; line-height:1.6;">${gioHDString}</div>
+            </div>
+        `;
+
+        // Lễ hội (nếu có)
+        if (festivalString) {
+          res += `
+            <div style="background: rgba(76, 175, 80, 0.2); border-radius: 8px; padding: 12px; border: 1px solid rgba(76, 175, 80, 0.3);">
+                <div style="font-weight:bold; margin-bottom:8px; color:#ffff99;">🎊 Ngày lễ:</div>
+                <div style="line-height:1.8;">${festivalString}</div>
+            </div>
+          `;
+        }
+
+        res += `</div>`;
+
+        // Update DOM
+        const titleEl = $('ha-popup-title');
+        const contentEl = $('ha-popup-content');
+        
+        if(titleEl) titleEl.innerText = `Chi tiết ngày ${dd}/${mm}`;
+        if(contentEl) contentEl.innerHTML = res;
+
+        popup.classList.add('show');
+
+      } catch(e) {
+        console.error("Lỗi Popup:", e);
+        const contentEl = $('ha-popup-content');
+        if(contentEl) contentEl.innerHTML = `<div style="color:red; padding:15px; text-align:center;">Có lỗi xảy ra: ${e.message}</div>`;
+        popup.classList.add('show');
+      }
+    }
     static getConfigElement() {
       return document.createElement('lich-am-duong-card-editor');
     }
@@ -1139,6 +1422,7 @@
     static getStubConfig() {
       return {
         background: 'normal',
+        background_opacity: 0,
         quote_entity: ''
       };
     }
@@ -1149,13 +1433,13 @@
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: 'lich-am-duong-card',
-    name: 'Lịch Âm Dương Việt Nam',
-    description: 'Lịch bloc âm dương enhanced với giao diện đẹp',
+    name: 'Lịch Âm Dương Việt Nam Enhanced',
+    description: 'Lịch bloc âm dương với background opacity và toggle chọn ngày',
     preview: true
   });
 
   console.info(
-    '%c LỊCH-ÂM-DƯƠNG-CARD %c Version 2.0 ',
+    '%c LỊCH-ÂM-DƯƠNG-CARD %c Version 2.1 Fixed - Display Stable ',
     'color: white; background: #7b1fa2; font-weight: 700;',
     'color: #7b1fa2; background: white; font-weight: 700;'
   );
